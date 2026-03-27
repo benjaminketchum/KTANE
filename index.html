@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Paranormal Dispatch</title>
+  <style>
+    /* --- CSS STYLES --- */
+    * { box-sizing: border-box; font-family: 'Courier New', Courier, monospace; }
+
+    body {
+      margin: 0;
+      background-color: #0a0a0a;
+      color: #33ff33; 
+      height: 100vh;
+      display: flex;
+    }
+
+    .layout-container { display: flex; width: 100%; height: 100%; }
+
+    /* LEFT SIDE: GAME */
+    .game-panel {
+      flex: 3;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      overflow-y: auto;
+    }
+
+    /* RIGHT SIDE: CHAT */
+    .chat-panel {
+      flex: 1;
+      background-color: #111;
+      border-left: 2px solid #33ff33;
+      display: flex;
+      flex-direction: column;
+      padding: 10px;
+    }
+
+    .messages-container {
+      flex-grow: 1;
+      overflow-y: auto;
+      margin-bottom: 10px;
+      border: 1px solid #222;
+      padding: 10px;
+      background-color: #000;
+      word-wrap: break-word;
+    }
+
+    .chat-message { margin-bottom: 8px; font-size: 0.9rem; }
+    .chat-controls { display: flex; gap: 5px; }
+
+    input[type="text"], select {
+      background-color: #000;
+      color: #33ff33;
+      border: 1px solid #33ff33;
+      padding: 8px;
+      flex-grow: 1;
+      outline: none;
+    }
+
+    button {
+      background-color: #33ff33;
+      color: #000;
+      border: none;
+      padding: 10px 15px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background-color 0.2s;
+    }
+
+    button:hover { background-color: #2ce62c; }
+    button:disabled { background-color: #555; color: #888; cursor: not-allowed; }
+
+    /* UTILITIES */
+    .screen { display: none; text-align: center; width: 100%; max-width: 800px; }
+    .screen.active { display: block; }
+
+    /* MENU ELEMENTS */
+    .menu-section { border: 1px solid #33ff33; padding: 20px; margin-bottom: 20px; background: #111; }
+
+    /* TIMER */
+    .timer-display {
+      font-size: 2.5em;
+      font-weight: bold;
+      color: #fff;
+      margin-bottom: 20px;
+      background: #111;
+      border: 2px solid #ff0000;
+      padding: 10px 20px;
+      border-radius: 5px;
+    }
+
+    /* --- EQUIPMENT GRID (Investigator) --- */
+    .equipment-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      width: 100%;
+      margin-bottom: 20px;
+    }
+
+    .tool-box {
+      border: 1px solid #555;
+      background: #1a1a1a;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    /* EMF Meter */
+    .emf-meter { display: flex; justify-content: center; gap: 8px; margin: 15px 0; }
+    .emf-light { width: 25px; height: 25px; border-radius: 50%; background-color: #111; border: 1px solid #000; }
+    .emf-light[data-level="1"].on { background-color: #00ff00; box-shadow: 0 0 10px #00ff00; }
+    .emf-light[data-level="2"].on { background-color: #aaff00; box-shadow: 0 0 10px #aaff00; }
+    .emf-light[data-level="3"].on { background-color: #ffff00; box-shadow: 0 0 10px #ffff00; }
+    .emf-light[data-level="4"].on { background-color: #ffaa00; box-shadow: 0 0 10px #ffaa00; }
+    .emf-light[data-level="5"].on { background-color: #ff0000; box-shadow: 0 0 15px #ff0000; }
+    
+    /* Digital Screens (Thermo & Spirit Box) */
+    .digital-readout {
+      background: #000;
+      color: #00ffff;
+      font-size: 1.5em;
+      padding: 10px;
+      border: 2px inset #555;
+      margin-bottom: 10px;
+      min-height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .spirit-box-readout { color: #ff3333; }
+    
+    /* Ghost Writing Book */
+    .book-readout {
+      background: #dfd7c3;
+      color: #2b1d0e;
+      font-family: 'Brush Script MT', cursive, sans-serif;
+      font-size: 1.5em;
+      min-height: 80px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 5px;
+      border: 2px solid #5c4033;
+    }
+
+    .action-panel { padding: 15px; border: 1px solid #ffaa00; background: #221100; width: 100%; }
+
+    /* MANUAL STYLING (Archivist) */
+    .manual-table { width: 100%; border-collapse: collapse; margin: 20px 0; color: #33ff33; }
+    .manual-table th, .manual-table td { border: 1px solid #33ff33; padding: 10px; text-align: left; }
+    .manual-table th { background-color: #111; }
+    .live-feed { border: 1px dashed #ff0000; padding: 15px; background: #1a0000; margin-bottom: 20px; }
+
+    /* END SCREEN */
+    .end-message { font-size: 1.5em; margin: 20px 0; font-weight: bold; }
+    .win { color: #00ff00; }
+    .lose { color: #ff0000; }
+  </style>
+</head>
+<body>
+
+  <div class="layout-container">
+    <main class="game-panel">
+      <div id="main-menu" class="screen active">
+        <h1>PARANORMAL DISPATCH</h1>
+        <div class="menu-section">
+          <h3>Investigator: Create Haunt</h3>
+          <label>Select Timer Difficulty:</label><br><br>
+          <select id="difficulty-level" style="width: 200px; margin-bottom: 15px;">
+            <option value="180">Easy (180 seconds)</option>
+            <option value="120" selected>Medium (120 seconds)</option>
+            <option value="60">Hard (60 seconds)</option>
+          </select><br>
+          <button id="btn-create">Create Haunt</button>
+        </div>
+        <div class="menu-section">
+          <h3>Archivist: Join Haunt</h3>
+          <input type="text" id="input-join-code" placeholder="Enter 4-Digit Code" style="text-align: center; width: 200px;"><br><br>
+          <button id="btn-join">Join Haunt</button>
+        </div>
+      </div>
+
+      <div id="game-room" class="screen hidden">
+        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+          <h2 id="room-header" style="margin: 0;">Haunt: [CODE]</h2>
+          <button id="btn-leave" style="background-color: #ff3333;">Abort Mission</button>
+        </div>
+        <hr style="border-color: #33ff33; width: 100%; margin: 15px 0;">
+        
+        <div id="timer-ui" class="timer-display">Waiting for Archivist...</div>
+        
+        <div id="game-dashboard" style="width: 100%;"></div>
+      </div>
+    </main>
+
+    <aside class="chat-panel">
+      <h3 id="chat-title">Global Comm Link</h3>
+      <div id="chat-messages" class="messages-container"></div>
+      <div class="chat-controls">
+        <input type="text" id="chat-input" placeholder="Transmit message...">
+        <button id="btn-send">Send</button>
+      </div>
+    </aside>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getDatabase, ref, set, update, onValue, push, onChildAdded, get, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+    // 🚨 PASTE YOUR FIREBASE CONFIG HERE 🚨
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com", 
+      projectId: "YOUR_PROJECT_ID",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // --- STATE VARIABLES ---
+    let currentChatPath = "chats/global"; 
+    let unsubscribeChat = null;
+    let unsubscribeGame = null;
+    let playerName = "Agent_" + Math.floor(Math.random() * 1000); 
+    let gameTimerInterval = null;
+    let hasReturnedToMenu = false;
+
+    // --- GHOST LOGIC & EVIDENCE ---
+    // The game checks the "evidence" array to see what tools will trigger.
+    const ghostTypes = [
+      { name: "Poltergeist", evidence: ["spirit_box", "ghost_writing"], maxEmf: 3, tempRange: [10, 15], weakness: "turn_off_breakers" },
+      { name: "Banshee", evidence: ["freezing", "emf5"], maxEmf: 5, tempRange: [-5, -1], weakness: "salt_doorways" },
+      { name: "Revenant", evidence: ["emf5", "ghost_writing"], maxEmf: 5, tempRange: [8, 14], weakness: "burn_sage" },
+      { name: "Demon", evidence: ["freezing", "spirit_box"], maxEmf: 4, tempRange: [-6, -2], weakness: "holy_water" }
+    ];
+
+    // --- DOM ELEMENTS ---
+    const chatMessages = document.getElementById("chat-messages");
+    const chatInput = document.getElementById("chat-input");
+    const btnSend = document.getElementById("btn-send");
+    const chatTitle = document.getElementById("chat-title");
+    const mainMenu = document.getElementById("main-menu");
+    const gameRoom = document.getElementById("game-room");
+    const roomHeader = document.getElementById("room-header");
+    const gameDashboard = document.getElementById("game-dashboard");
+    const timerUI = document.getElementById("timer-ui");
+
+    // --- CHAT LOGIC ---
+    function setupChat(path) {
+      if (unsubscribeChat) unsubscribeChat(); 
+      currentChatPath = path;
+      chatMessages.innerHTML = ""; 
+      unsubscribeChat = onChildAdded(ref(db, currentChatPath), (snapshot) => {
+        const msgData = snapshot.val();
+        const msgElement = document.createElement("div");
+        msgElement.classList.add("chat-message");
+        msgElement.innerHTML = `<strong style="color: #fff;">${msgData.sender}:</strong> ${msgData.text}`;
+        chatMessages.appendChild(msgElement);
+        chatMessages.scrollTop = chatMessages.scrollHeight; 
+      });
+    }
+
+    function sendMessage() {
+      const text = chatInput.value.trim();
+      if (!text) return;
+      push(ref(db, currentChatPath), { sender: playerName, text: text, timestamp: Date.now() });
+      chatInput.value = "";
+    }
+    btnSend.addEventListener("click", sendMessage);
+    chatInput.addEventListener("keypress", (e) => { if (e.key === "Enter") sendMessage(); });
+
+    // --- MENU LOGIC ---
+    function returnToMenu() {
+      if (hasReturnedToMenu) return; 
+      hasReturnedToMenu = true;
+      if (unsubscribeGame) unsubscribeGame(); 
+      clearInterval(gameTimerInterval);
+      gameTimerInterval = null;
+      mainMenu.classList.add("active");
+      gameRoom.classList.remove("active");
+      chatTitle.innerText = "Global Comm Link";
+      setupChat("chats/global");
+    }
+
+    document.getElementById("btn-create").addEventListener("click", () => {
+      const roomCode = "GHOST-" + Math.floor(1000 + Math.random() * 9000);
+      const randomGhost = ghostTypes[Math.floor(Math.random() * ghostTypes.length)];
+      const startingTime = parseInt(document.getElementById("difficulty-level").value);
+      
+      set(ref(db, `haunts/${roomCode}`), {
+        status: "waiting", 
+        ghostData: randomGhost, 
+        gameState: { emfLevel: 1, timeLeft: startingTime }
+      });
+      joinRoom(roomCode, "Investigator");
+    });
+
+    document.getElementById("btn-join").addEventListener("click", () => {
+      const code = document.getElementById("input-join-code").value.trim().toUpperCase();
+      if (code) {
+        update(ref(db, `haunts/${code}`), { status: "playing" });
+        joinRoom(code, "Archivist");
+      }
+    });
+
+    document.getElementById("btn-leave").addEventListener("click", returnToMenu);
+
+    function joinRoom(roomCode, role) {
+      hasReturnedToMenu = false;
+      mainMenu.classList.remove("active");
+      gameRoom.classList.add("active");
+      roomHeader.innerText = `Haunt: ${roomCode} | Role: ${role}`;
+      chatTitle.innerText = `Secure Channel: ${roomCode}`;
+      timerUI.innerText = "Waiting for Archivist...";
+      timerUI.style.color = "#fff";
+      
+      setupChat(`chats/rooms/${roomCode}`);
+      if (role === "Investigator") loadInvestigatorUI(roomCode);
+      else loadArchivistUI(roomCode);
+      monitorGameState(roomCode);
+    }
+
+    function monitorGameState(roomCode) {
+      unsubscribeGame = onValue(ref(db, `haunts/${roomCode}`), (snapshot) => {
+        const data = snapshot.val();
+        if (!data) return;
+
+        if (data.status === "playing") {
+          timerUI.innerText = `Time: ${data.gameState.timeLeft}s`;
+          if (data.gameState.timeLeft <= 10) timerUI.style.color = "#ff0000";
+        }
+
+        if (data.status === "won" || data.status === "lost") {
+          clearInterval(gameTimerInterval);
+          if (data.status === "won") {
+            timerUI.innerText = "SYSTEM SECURED";
+            timerUI.style.color = "#00ff00";
+            gameDashboard.innerHTML = `<div class="end-message win">GHOST BANISHED!<br>Returning to base in 4 seconds...</div>`;
+          } else if (data.status === "lost") {
+            timerUI.innerText = "SIGNAL LOST";
+            timerUI.style.color = "#ff0000";
+            gameDashboard.innerHTML = `<div class="end-message lose">YOU WERE KILLED BY A ${data.ghostData.name.toUpperCase()}.<br>Returning to base in 4 seconds...</div>`;
+          }
+          setTimeout(() => {
+            remove(ref(db, `haunts/${roomCode}`)); 
+            returnToMenu();
+          }, 4000);
+        }
+      });
+    }
+
+    // --- GAME LOGIC: INVESTIGATOR ---
+    function loadInvestigatorUI(roomCode) {
+      let localGhost = null;
+      let startingTime = 120;
+
+      get(ref(db, `haunts/${roomCode}`)).then((snapshot) => {
+        localGhost = snapshot.val().ghostData;
+        startingTime = snapshot.val().gameState.timeLeft;
+      });
+
+      gameDashboard.innerHTML = `
+        <div class="equipment-grid">
+          
+          <div class="tool-box">
+            <h4>EMF Reader</h4>
+            <div class="emf-meter" id="emf-meter">
+              <div class="emf-light" data-level="1"></div>
+              <div class="emf-light" data-level="2"></div>
+              <div class="emf-light" data-level="3"></div>
+              <div class="emf-light" data-level="4"></div>
+              <div class="emf-light" data-level="5"></div>
+            </div>
+            <button id="btn-trigger-emf">Scan Frequencies</button>
+          </div>
+
+          <div class="tool-box">
+            <h4>Digital Thermometer</h4>
+            <div class="digital-readout" id="thermo-readout">--.- °C</div>
+            <button id="btn-trigger-thermo">Check Temp</button>
+          </div>
+
+          <div class="tool-box">
+            <h4>Spirit Box Radio</h4>
+            <div class="digital-readout spirit-box-readout" id="sb-readout">Mhz...</div>
+            <button id="btn-trigger-sb">Ask Question</button>
+          </div>
+
+          <div class="tool-box">
+            <h4>Ghost Writing Book</h4>
+            <div class="book-readout" id="book-readout">Blank pages...</div>
+            <button id="btn-trigger-book">Leave Book Open</button>
+          </div>
+
+        </div>
+
+        <div class="action-panel">
+          <h3 style="margin-top:0;">Deploy Counter-Measure</h3>
+          <p style="font-size: 0.8em;">Report your findings to the Archivist and await instructions.</p>
+          <div style="display: flex; gap: 10px;">
+            <select id="counter-measure-select">
+              <option value="">-- Select Action --</option>
+              <option value="turn_off_breakers">Turn off Breakers</option>
+              <option value="salt_doorways">Salt Doorways</option>
+              <option value="burn_sage">Burn Sage</option>
+              <option value="holy_water">Throw Holy Water</option>
+            </select>
+            <button id="btn-submit-action">Execute!</button>
+          </div>
+        </div>
+      `;
+
+      // EMF Logic
+      function setEMFLights(level) {
+        document.querySelectorAll(".emf-light").forEach((light, index) => {
+          if (index < level) light.classList.add("on");
+          else light.classList.remove("on");
+        });
+      }
+      setEMFLights(1);
+      
+      document.getElementById("btn-trigger-emf").addEventListener("click", () => {
+        if (!localGhost) return;
+        const minSpike = localGhost.maxEmf - 1; 
+        const maxSpike = localGhost.maxEmf;
+        const randomSpike = Math.floor(Math.random() * (maxSpike - minSpike + 1)) + minSpike; 
+        setEMFLights(randomSpike);
+        update(ref(db, `haunts/${roomCode}/gameState`), { emfLevel: randomSpike });
+        setTimeout(() => {
+          setEMFLights(1);
+          update(ref(db, `haunts/${roomCode}/gameState`), { emfLevel: 1 });
+        }, 2000);
+      });
+
+      // Thermometer Logic
+      document.getElementById("btn-trigger-thermo").addEventListener("click", () => {
+        if (!localGhost) return;
+        const minTemp = localGhost.tempRange[0];
+        const maxTemp = localGhost.tempRange[1];
+        // Generate a random float within the ghost's temp range
+        const randomTemp = (Math.random() * (maxTemp - minTemp) + minTemp).toFixed(1);
+        document.getElementById("thermo-readout").innerText = `${randomTemp} °C`;
+      });
+
+      // Spirit Box Logic
+      const sbWords = ["DEATH", "COLD", "BEHIND YOU", "LEAVE", "KILL", "HERE"];
+      document.getElementById("btn-trigger-sb").addEventListener("click", () => {
+        if (!localGhost) return;
+        const readout = document.getElementById("sb-readout");
+        readout.innerText = "Scanning...";
+        setTimeout(() => {
+          if (localGhost.evidence.includes("spirit_box")) {
+            readout.innerText = sbWords[Math.floor(Math.random() * sbWords.length)];
+          } else {
+            readout.innerText = "*STATIC*";
+          }
+        }, 1000);
+      });
+
+      // Ghost Writing Logic
+      document.getElementById("btn-trigger-book").addEventListener("click", () => {
+        if (!localGhost) return;
+        const readout = document.getElementById("book-readout");
+        readout.innerText = "Waiting...";
+        setTimeout(() => {
+          if (localGhost.evidence.includes("ghost_writing")) {
+            readout.innerHTML = "<em>I will never leave...</em>";
+          } else {
+            readout.innerText = "Still blank.";
+          }
+        }, 1500);
+      });
+
+      // Submit Action Logic
+      document.getElementById("btn-submit-action").addEventListener("click", () => {
+        const choice = document.getElementById("counter-measure-select").value;
+        if (!choice) return;
+        if (choice === localGhost.weakness) update(ref(db, `haunts/${roomCode}`), { status: "won" });
+        else update(ref(db, `haunts/${roomCode}`), { status: "lost" });
+      });
+
+      // Timer Logic
+      onValue(ref(db, `haunts/${roomCode}/status`), (snapshot) => {
+        if (snapshot.val() === "playing" && !gameTimerInterval) {
+          let timeLeft = startingTime;
+          gameTimerInterval = setInterval(() => {
+            timeLeft--;
+            update(ref(db, `haunts/${roomCode}/gameState`), { timeLeft: timeLeft });
+            if (timeLeft <= 0) {
+              clearInterval(gameTimerInterval);
+              update(ref(db, `haunts/${roomCode}`), { status: "lost" });
+            }
+          }, 1000);
+        }
+      });
+    }
+
+    // --- GAME LOGIC: ARCHIVIST ---
+    function loadArchivistUI(roomCode) {
+      gameDashboard.innerHTML = `
+        <div class="live-feed">
+          <h3 style="margin-top:0;">🔴 LIVE VAN TELEMETRY</h3>
+          <p>Remote EMF Signature: <span id="live-emf-readout" style="font-weight: bold; font-size: 1.5em; color: #33ff33;">1</span></p>
+          <p style="font-size: 0.8em; color: #888;">*All other tools must be operated and reported verbally by the Investigator.</p>
+        </div>
+
+        <h3>Demonology Field Guide: Vol 2</h3>
+        <table class="manual-table">
+          <thead>
+            <tr>
+              <th>Entity</th>
+              <th>Evidence 1</th>
+              <th>Evidence 2</th>
+              <th>Counter-Measure</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Poltergeist</td><td>Spirit Box</td><td>Ghost Writing</td><td>Turn off breakers</td></tr>
+            <tr><td>Banshee</td><td>EMF Level 5</td><td>Freezing Temp (&lt;0 °C)</td><td>Salt the doorways</td></tr>
+            <tr><td>Revenant</td><td>EMF Level 5</td><td>Ghost Writing</td><td>Burn Sage</td></tr>
+            <tr><td>Demon</td><td>Freezing Temp (&lt;0 °C)</td><td>Spirit Box</td><td>Throw Holy Water</td></tr>
+          </tbody>
+        </table>
+      `;
+
+      onValue(ref(db, `haunts/${roomCode}/gameState/emfLevel`), (snapshot) => {
+        const currentEMF = snapshot.val();
+        const readout = document.getElementById("live-emf-readout");
+        if (readout && currentEMF) {
+          readout.innerText = currentEMF;
+          if (currentEMF >= 4) readout.style.color = "#ff0000";
+          else readout.style.color = "#33ff33";
+        }
+      });
+    }
+
+    setupChat("chats/global");
+  </script>
+</body>
+</html>
